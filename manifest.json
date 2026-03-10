@@ -8,19 +8,43 @@
   "description": "MKX Value Betting Calculator",
   "icons": [
     {
-      "src": "/mkx-calculator/icon-192.png",
+      "src": "/mkx-calculator/launchericon-48x48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/mkx-calculator/launchericon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/mkx-calculator/launchericon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/mkx-calculator/launchericon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/mkx-calculator/launchericon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/mkx-calculator/icon-512.png",
+      "src": "/mkx-calculator/launchericon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/mkx-calculator/icon-512.png",
+      "src": "/mkx-calculator/launchericon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
