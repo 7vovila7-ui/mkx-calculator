@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MKX Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&family=Oswald:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold:#c8a84b; --gold-light:#f0d080;
+  --dark:#0a0a0f; --panel:#13131c; --border:#2a2a3a;
+  --text:#d0cfe8; --muted:#666680;
+  --green:#00e676; --red:#ff3d3d;
+  --blood:#cc1111;
+  --R:#4a9eff; --F:#ff6b35; --B:#b44bff;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:var(--dark);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;
+  background-image:radial-gradient(ellipse 80% 40% at 50% 0%,rgba(139,0,0,.15) 0%,transparent 70%);}
+
+.container{max-width:480px;margin:0 auto;padding:16px 12px 40px;}
+
+/* HEADER */
+.header{text-align:center;padding:20px 0 16px;}
+.header::after{content:'';display:block;width:100%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--blood),var(--gold),var(--blood),transparent);margin-top:16px;}
+.header h1{font-family:'Oswald',sans-serif;font-size:20px;font-weight:600;letter-spacing:3px;
+  background:linear-gradient(135deg,var(--gold-light),var(--gold),#a07828);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.header p{font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:4px;font-family:'Share Tech Mono',monospace;}
+
+/* SECTION */
+.section-label{font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:3px;color:var(--gold);
+  margin:20px 0 8px;display:flex;align-items:center;gap:8px;}
+.section-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent);}
+
+/* PASTE BUTTON — большая кнопка для телефона */
+.paste-btn{width:100%;background:var(--panel);border:2px dashed var(--border);border-radius:10px;
+  padding:0;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.paste-btn:active{transform:scale(.98);}
+.paste-btn.has-data{border-color:var(--gold);border-style:solid;}
+.paste-inner{padding:22px 16px;text-align:center;pointer-events:none;}
+.paste-icon{font-size:32px;display:block;margin-bottom:8px;}
+.paste-title{font-family:'Oswald',sans-serif;font-size:17px;letter-spacing:2px;color:var(--gold);}
+.paste-sub{font-size:12px;color:var(--muted);margin-top:4px;font-family:'Share Tech Mono',monospace;}
+/* hidden textarea for paste capture */
+.paste-btn textarea{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;font-size:16px;/* prevent zoom on iOS */}
+
+.status{display:flex;align-items:center;gap:6px;margin-top:8px;font-family:'Share Tech Mono',monospace;font-size:11px;}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.sdot.ok{background:var(--green);box-shadow:0 0 6px var(--green);}
+.sdot.err{background:var(--red);box-shadow:0 0 6px var(--red);}
+.stext{color:var(--muted);}
+.stext.ok{color:var(--green);}
+.stext.err{color:var(--red);}
+
+/* CLEAR BTN */
+.btn-clear{background:none;border:1px solid var(--border);color:var(--muted);
+  font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;
+  padding:6px 14px;border-radius:4px;cursor:pointer;margin-left:auto;}
+
+/* ODDS — крупные инпуты */
+.odds-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.odds-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 8px;text-align:center;}
+.odds-card:nth-child(1){border-top:3px solid var(--R);}
+.odds-card:nth-child(2){border-top:3px solid var(--F);}
+.odds-card:nth-child(3){border-top:3px solid var(--B);}
+.odds-badge{display:inline-block;font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;margin-bottom:4px;}
+.odds-name{font-size:10px;color:var(--muted);letter-spacing:1px;display:block;margin-bottom:6px;}
+.odds-input{width:100%;background:#1a1f3a;border:1px solid var(--border);border-radius:5px;
+  color:var(--gold-light);font-family:'Share Tech Mono',monospace;font-size:20px;font-weight:700;
+  text-align:center;padding:8px 2px;outline:none;-webkit-appearance:none;
+  /* font-size 16px min prevents iOS zoom */
+}
+.odds-input:focus{border-color:var(--gold);}
+
+/* RESULTS — карточки вместо таблицы */
+.round-cards{display:flex;flex-direction:column;gap:6px;}
+.round-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.round-card.avg-card{border-color:var(--gold);background:rgba(200,168,75,.05);}
+.round-card.dim-card{opacity:.35;}
+.rc-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;
+  background:rgba(0,0,0,.3);border-bottom:1px solid var(--border);}
+.rc-round{font-family:'Oswald',sans-serif;font-size:18px;font-weight:600;color:var(--gold);}
+.rc-tag{font-size:10px;color:var(--muted);font-family:'Share Tech Mono',monospace;letter-spacing:1px;}
+.rc-body{display:grid;grid-template-columns:repeat(3,1fr);gap:0;}
+.rc-cell{padding:10px 6px;text-align:center;border-right:1px solid rgba(255,255,255,.04);}
+.rc-cell:last-child{border-right:none;}
+.rc-label{font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;font-family:'Oswald',sans-serif;}
+.rc-p{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--text);}
+.rc-v{font-family:'Share Tech Mono',monospace;font-size:14px;font-weight:700;margin-top:2px;}
+.rc-k{font-size:11px;color:var(--gold);font-family:'Share Tech Mono',monospace;margin-top:1px;}
+.vp{color:var(--green);}
+.vn{color:var(--red);}
+
+/* RECOMMENDATION */
+.rec{border-radius:8px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;margin-top:12px;}
+.rec.wait{background:rgba(255,255,255,.03);border:1px solid var(--border);color:var(--muted);
+  font-family:'Oswald',sans-serif;letter-spacing:2px;font-size:12px;justify-content:center;align-items:center;}
+.rec.pos{background:rgba(0,230,118,.07);border:1px solid rgba(0,230,118,.3);}
+.rec.neg{background:rgba(255,61,61,.07);border:1px solid rgba(255,61,61,.25);}
+.rec-icon{font-size:26px;flex-shrink:0;margin-top:2px;}
+.rec-main{font-family:'Oswald',sans-serif;font-size:16px;letter-spacing:1px;line-height:1.3;}
+.rec-sub{font-size:12px;color:var(--muted);font-family:'Share Tech Mono',monospace;margin-top:4px;line-height:1.4;}
+
+@keyframes flash{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
+.flash-ok{position:fixed;inset:0;pointer-events:none;background:rgba(0,230,118,.08);animation:flash .5s ease-out forwards;z-index:999;}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>⚔ MKX CALCULATOR</h1>
+    <p>VALUE · FATALITY · BRUTALITY · ROUND ANALYSIS</p>
+  </div>
+
+  <div class="section-label">01 &nbsp;Вставить статистику</div>
+
+  <button class="paste-btn" id="pasteZone" onclick="focusPaste()">
+    <div class="paste-inner" id="pasteHint">
+      <span class="paste-icon">📋</span>
+      <div class="paste-title">Нажми → вставь данные</div>
+      <div class="paste-sub">Скопируй таблицу раундов с сайта → нажми сюда → вставь</div>
+    </div>
+    <textarea id="pasteArea" spellcheck="false" autocomplete="off" readonly></textarea>
+  </button>
+
+  <div class="status">
+    <div class="sdot" id="statusDot"></div>
+    <span class="stext" id="statusText">Ожидание данных...</span>
+    <button class="btn-clear" id="btnClear" style="display:none" onclick="clearData()">✕ Очистить</button>
+  </div>
+
+  <div class="section-label">02 &nbsp;Коэффициенты</div>
+  <div class="odds-grid">
+    <div class="odds-card">
+      <span class="odds-badge" style="color:var(--R)">R</span>
+      <span class="odds-name">Без доб.</span>
+      <input class="odds-input" id="oddsR" type="number" inputmode="decimal" step="0.01" min="1" value="1.50" oninput="recalc()">
+    </div>
+    <div class="odds-card">
+      <span class="odds-badge" style="color:var(--F)">F</span>
+      <span class="odds-name">Фаталити</span>
+      <input class="odds-input" id="oddsF" type="number" inputmode="decimal" step="0.01" min="1" value="3.20" oninput="recalc()">
+    </div>
+    <div class="odds-card">
+      <span class="odds-badge" style="color:var(--B)">B</span>
+      <span class="odds-name">Бруталити</span>
+      <input class="odds-input" id="oddsB" type="number" inputmode="decimal" step="0.01" min="1" value="8.00" oninput="recalc()">
+    </div>
+  </div>
+
+  <div class="section-label">03 &nbsp;Результат</div>
+  <div class="round-cards" id="roundCards">
+    <div style="text-align:center;padding:20px;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:2px;">
+      — ВСТАВЬТЕ ДАННЫЕ ВЫШЕ —
+    </div>
+  </div>
+
+  <div class="rec wait" id="recommendation">ВВЕДИТЕ ДАННЫЕ И КОЭФФИЦИЕНТЫ</div>
+
+</div>
+<script>
+let parsedData = null;
+
+function focusPaste() {
+  const ta = document.getElementById('pasteArea');
+  ta.removeAttribute('readonly');
+  ta.focus();
+  // Try clipboard API first (works on Android Chrome)
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    navigator.clipboard.readText().then(text => {
+      if (text && text.length > 50) processPaste(text);
+    }).catch(() => {});
+  }
+}
+
+document.getElementById('pasteZone').addEventListener('click', focusPaste);
+
+document.getElementById('pasteArea').addEventListener('paste', e => {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  processPaste(text);
+});
+
+document.addEventListener('paste', e => {
+  if (document.activeElement !== document.getElementById('pasteArea')) {
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    processPaste(text);
+  }
+});
+
+function processPaste(raw) {
+  // Source validation — must be BKstat page
+  const hasSite = raw.includes('BKstat.VIP') || raw.includes('BKstat ©2018 Created by Napad Maxim');
+  if (!hasSite) {
+    setStatus('err', 'Неверный источник данных');
+    document.getElementById('pasteHint').innerHTML = `
+      <span class="paste-icon">⛔</span>
+      <div class="paste-title" style="color:var(--red)">Неверный источник</div>
+      <div class="paste-sub">Данные должны быть со страницы статистики BKstat</div>`;
+    return;
+  }
+
+  const tokens = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+  // Strategy: find the data table by locating round rows.
+  // A valid round row starts with a round number (1-9), followed by player count (>50),
+  // and has 25 tokens total. We scan all tokens to find such rows.
+  // This works whether user pastes just the table or the entire page.
+
+  const data = {}; let found = 0;
+
+  for (let i = 0; i < tokens.length - 24; i++) {
+    const rn = parseInt(tokens[i]);
+    if (isNaN(rn) || rn < 1 || rn > 9) continue;
+    // Next token should be total players count (large number > 50)
+    const total = parseFloat(tokens[i+1]);
+    if (isNaN(total) || total < 50 || total > 100000) continue;
+    // Check we have enough tokens and pR/pF/pB are percentages (0-100)
+    const chunk = tokens.slice(i, i + 25);
+    if (chunk.length < 25) continue;
+    const pR = parseFloat(chunk[7].replace(',', '.'));
+    const pF = parseFloat(chunk[13].replace(',', '.'));
+    const pB = parseFloat(chunk[19].replace(',', '.'));
+    if (isNaN(pR) || isNaN(pF) || isNaN(pB)) continue;
+    if (pR < 0 || pR > 100 || pF < 0 || pF > 100 || pB < 0 || pB > 100) continue;
+    // Valid row — but check we're not re-parsing the same round
+    if (!data[rn]) {
+      data[rn] = { pR: pR/100, pF: pF/100, pB: pB/100 };
+      found++;
+    }
+  }
+
+  if (![1,2,3,4,5].every(r => data[r])) { setStatus('err', `Нужны раунды 1–5. Найдено: ${found}.`); return; }
+
+  parsedData = data;
+  document.getElementById('pasteZone').classList.add('has-data');
+  document.getElementById('pasteHint').innerHTML = `
+    <span class="paste-icon">✅</span>
+    <div class="paste-title" style="color:var(--green)">Данные загружены</div>
+    <div class="paste-sub">${found} раундов · Раунды 1–5 готовы</div>`;
+  setStatus('ok', `${found} раундов загружено`);
+  document.getElementById('btnClear').style.display = 'block';
+  const fl = document.createElement('div'); fl.className = 'flash-ok';
+  document.body.appendChild(fl); setTimeout(() => fl.remove(), 600);
+  recalc();
+}
+
+function setStatus(type, msg) {
+  document.getElementById('statusDot').className = 'sdot ' + (type||'');
+  const t = document.getElementById('statusText');
+  t.className = 'stext ' + (type||'');
+  t.textContent = msg;
+}
+
+function clearData() {
+  parsedData = null;
+  document.getElementById('pasteZone').classList.remove('has-data');
+  document.getElementById('pasteHint').innerHTML = `
+    <span class="paste-icon">📋</span>
+    <div class="paste-title">Нажми → вставь данные</div>
+    <div class="paste-sub">Скопируй таблицу раундов с сайта → нажми сюда → вставь</div>`;
+  document.getElementById('pasteArea').value = '';
+  document.getElementById('pasteArea').setAttribute('readonly','');
+  setStatus('', 'Ожидание данных...');
+  document.getElementById('btnClear').style.display = 'none';
+  document.getElementById('roundCards').innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:2px;">— ВСТАВЬТЕ ДАННЫЕ ВЫШЕ —</div>`;
+  const rec = document.getElementById('recommendation');
+  rec.className = 'rec wait'; rec.innerHTML = 'ВВЕДИТЕ ДАННЫЕ И КОЭФФИЦИЕНТЫ';
+}
+
+function kelly(odds, p) {
+  if (!p || p <= 0) return null;
+  const v = odds * p - 1;
+  if (v <= 0) return null;
+  return (v / (odds - 1)) / 4;
+}
+
+function recalc() {
+  if (!parsedData) return;
+  const oR = parseFloat(document.getElementById('oddsR').value) || 0;
+  const oF = parseFloat(document.getElementById('oddsF').value) || 0;
+  const oB = parseFloat(document.getElementById('oddsB').value) || 0;
+
+  // Middle 3 rounds per outcome
+  function middle3(key) {
+    const vals = [1,2,3,4,5].map(r => ({r, p: parsedData[r][key]}));
+    vals.sort((a,b) => a.p - b.p);
+    return vals.slice(1,4).map(v => v.r).sort((a,b) => a-b);
+  }
+  const midR = middle3('pR'), midF = middle3('pF'), midB = middle3('pB');
+  const avgPR = midR.reduce((s,r) => s+parsedData[r].pR, 0)/3;
+  const avgPF = midF.reduce((s,r) => s+parsedData[r].pF, 0)/3;
+  const avgPB = midB.reduce((s,r) => s+parsedData[r].pB, 0)/3;
+
+  let html = '';
+  for (let r = 1; r <= 5; r++) {
+    const d = parsedData[r];
+    const selR = midR.includes(r), selF = midF.includes(r), selB = midB.includes(r);
+    const isAvg = false;
+
+    const vR = oR > 0 ? oR*d.pR - 1 : null;
+    const vF = oF > 0 ? oF*d.pF - 1 : null;
+    const vB = oB > 0 ? oB*d.pB - 1 : null;
+    const kR = oR > 0 ? kelly(oR, d.pR) : null;
+    const kF = oF > 0 ? kelly(oF, d.pF) : null;
+    const kB = oB > 0 ? kelly(oB, d.pB) : null;
+
+    const tag = (!selR && !selF && !selB) ? '' : '';
+
+    html += `<div class="round-card${(!selR&&!selF&&!selB)?'':''}" >
+      <div class="rc-header">
+        <span class="rc-round">Р${r}</span>
+        <span class="rc-tag">${[selR?'R':'',selF?'F':'',selB?'B':''].filter(Boolean).join(' · ')||'исключён'}</span>
+      </div>
+      <div class="rc-body">
+        <div class="rc-cell" style="${!selR?'opacity:.3':''}">
+          <div class="rc-label" style="color:var(--R)">R</div>
+          <div class="rc-p">${(d.pR*100).toFixed(1)}%</div>
+          ${vR!==null?`<div class="rc-v ${vR>0?'vp':'vn'}">${vR>0?'+':''}${(vR*100).toFixed(1)}%</div>`:'<div class="rc-v" style="color:var(--muted)">—</div>'}
+          ${kR&&selR?`<div class="rc-k">${(kR*100).toFixed(1)}%K</div>`:''}
+        </div>
+        <div class="rc-cell" style="${!selF?'opacity:.3':''}">
+          <div class="rc-label" style="color:var(--F)">F</div>
+          <div class="rc-p">${(d.pF*100).toFixed(1)}%</div>
+          ${vF!==null?`<div class="rc-v ${vF>0?'vp':'vn'}">${vF>0?'+':''}${(vF*100).toFixed(1)}%</div>`:'<div class="rc-v" style="color:var(--muted)">—</div>'}
+          ${kF&&selF?`<div class="rc-k">${(kF*100).toFixed(1)}%K</div>`:''}
+        </div>
+        <div class="rc-cell" style="${!selB?'opacity:.3':''}">
+          <div class="rc-label" style="color:var(--B)">B</div>
+          <div class="rc-p">${(d.pB*100).toFixed(1)}%</div>
+          ${vB!==null?`<div class="rc-v ${vB>0?'vp':'vn'}">${vB>0?'+':''}${(vB*100).toFixed(1)}%</div>`:'<div class="rc-v" style="color:var(--muted)">—</div>'}
+          ${kB&&selB?`<div class="rc-k">${(kB*100).toFixed(1)}%K</div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // AVG card
+  const avgVR = oR>0 ? oR*avgPR-1 : null;
+  const avgVF = oF>0 ? oF*avgPF-1 : null;
+  const avgVB = oB>0 ? oB*avgPB-1 : null;
+  const avgKR = oR>0 ? kelly(oR,avgPR) : null;
+  const avgKF = oF>0 ? kelly(oF,avgPF) : null;
+  const avgKB = oB>0 ? kelly(oB,avgPB) : null;
+
+  html += `<div class="round-card avg-card">
+    <div class="rc-header">
+      <span class="rc-round" style="color:var(--gold);font-size:14px;letter-spacing:1px">AVG · 3 СРЕДНИХ</span>
+      <span class="rc-tag">Р${midR.join(',')} · Р${midF.join(',')} · Р${midB.join(',')}</span>
+    </div>
+    <div class="rc-body">
+      <div class="rc-cell">
+        <div class="rc-label" style="color:var(--R)">R</div>
+        <div class="rc-p">${(avgPR*100).toFixed(1)}%</div>
+        ${avgVR!==null?`<div class="rc-v ${avgVR>0?'vp':'vn'}">${avgVR>0?'+':''}${(avgVR*100).toFixed(1)}%</div>`:'<div class="rc-v" style="color:var(--muted)">—</div>'}
+        ${avgKR?`<div class="rc-k">${(avgKR*100).toFixed(1)}%K</div>`:''}
+      </div>
+      <div class="rc-cell">
+        <div class="rc-label" style="color:var(--F)">F</div>
+        <div class="rc-p">${(avgPF*100).toFixed(1)}%</div>
+        ${avgVF!==null?`<div class="rc-v ${avgVF>0?'vp':'vn'}">${avgVF>0?'+':''}${(avgVF*100).toFixed(1)}%</div>`:'<div class="rc-v" style="color:var(--muted)">—</div>'}
+        ${avgKF?`<div class="rc-k">${(avgKF*100).toFixed(1)}%K</div>`:''}
+      </div>
+      <div class="rc-cell">
+        <div class="rc-label" style="color:var(--B)">B</div>
+        <div class="rc-p">${(avgPB*100).toFixed(1)}%</div>
+        ${avgVB!==null?`<div class="rc-v ${avgVB>0?'vp':'vn'}">${avgVB>0?'+':''}${(avgVB*100).toFixed(1)}%</div>`:'<div class="rc-v" style="color:var(--muted)">—</div>'}
+        ${avgKB?`<div class="rc-k">${(avgKB*100).toFixed(1)}%K</div>`:''}
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('roundCards').innerHTML = html;
+
+  // Recommendation
+  const rec = document.getElementById('recommendation');
+  const bets = [];
+  const names = {R:'Без добивания',F:'Фаталити',B:'Бруталити'};
+  const cols = {R:'var(--R)',F:'var(--F)',B:'var(--B)'};
+  if(avgVR>0) bets.push({t:'R',v:avgVR,k:avgKR});
+  if(avgVF>0) bets.push({t:'F',v:avgVF,k:avgKF});
+  if(avgVB>0) bets.push({t:'B',v:avgVB,k:avgKB});
+  bets.sort((a,b)=>b.v-a.v);
+
+  if(bets.length>0){
+    const top=bets[0];
+    const ks=top.k?` · ¼K: <b>${(top.k*100).toFixed(1)}%</b>`:'';
+    rec.className='rec pos';
+    rec.innerHTML=`<div class="rec-icon">✅</div><div>
+      <div class="rec-main" style="color:${cols[top.t]}">СТАВИТЬ: ${names[top.t]}</div>
+      <div class="rec-sub">value <b style="color:var(--green)">+${(top.v*100).toFixed(1)}%</b>${ks}</div>
+      ${bets.length>1?`<div class="rec-sub" style="margin-top:4px">${bets.slice(1).map(b=>`<span style="color:${cols[b.t]}">${b.t}: +${(b.v*100).toFixed(1)}%</span>`).join(' &nbsp;')}</div>`:''}
+    </div>`;
+  } else {
+    rec.className='rec neg';
+    rec.innerHTML=`<div class="rec-icon">❌</div><div>
+      <div class="rec-main">НЕТ VALUE</div>
+      <div class="rec-sub">Нет перевеса ни по одному исходу</div>
+    </div>`;
+  }
+}
+</script>
+</body>
+</html>
