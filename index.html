@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8"><link rel="manifest" href="/mkx-calculator/manifest.json">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>MKX Calculator</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&family=Oswald:wght@300;400;600&display=swap" rel="stylesheet">
@@ -117,7 +117,7 @@ body{background:var(--dark);color:var(--text);font-family:'Rajdhani',sans-serif;
 
   <div class="section-label">01 &nbsp;Вставить статистику</div>
 
-  <button class="paste-btn" id="pasteZone" onclick="focusPaste()">
+  <button class="paste-btn" id="pasteZone" onclick="_zJYYLhe()">
     <div class="paste-inner" id="pasteHint">
       <span class="paste-icon">📋</span>
       <div class="paste-title">Нажми → вставь данные</div>
@@ -129,7 +129,7 @@ body{background:var(--dark);color:var(--text);font-family:'Rajdhani',sans-serif;
   <div class="status">
     <div class="sdot" id="statusDot"></div>
     <span class="stext" id="statusText">Ожидание данных...</span>
-    <button class="btn-clear" id="btnClear" style="display:none" onclick="clearData()">✕ Очистить</button>
+    <button class="btn-clear" id="btnClear" style="display:none" onclick="_OdqEAJz()">✕ Очистить</button>
   </div>
 
   <div class="section-label">02 &nbsp;Коэффициенты</div>
@@ -137,17 +137,17 @@ body{background:var(--dark);color:var(--text);font-family:'Rajdhani',sans-serif;
     <div class="odds-card">
       <span class="odds-badge" style="color:var(--R)">R</span>
       <span class="odds-name">Без доб.</span>
-      <input class="odds-input" id="oddsR" type="number" inputmode="decimal" step="0.01" min="1" value="1.50" oninput="recalc()">
+      <input class="odds-input" id="oddsR" type="number" inputmode="decimal" step="0.01" min="1" value="1.50" oninput="_pxvvVTR()">
     </div>
     <div class="odds-card">
       <span class="odds-badge" style="color:var(--F)">F</span>
       <span class="odds-name">Фаталити</span>
-      <input class="odds-input" id="oddsF" type="number" inputmode="decimal" step="0.01" min="1" value="3.20" oninput="recalc()">
+      <input class="odds-input" id="oddsF" type="number" inputmode="decimal" step="0.01" min="1" value="3.20" oninput="_pxvvVTR()">
     </div>
     <div class="odds-card">
       <span class="odds-badge" style="color:var(--B)">B</span>
       <span class="odds-name">Бруталити</span>
-      <input class="odds-input" id="oddsB" type="number" inputmode="decimal" step="0.01" min="1" value="8.00" oninput="recalc()">
+      <input class="odds-input" id="oddsB" type="number" inputmode="decimal" step="0.01" min="1" value="8.00" oninput="_pxvvVTR()">
     </div>
   </div>
 
@@ -161,64 +161,48 @@ body{background:var(--dark);color:var(--text);font-family:'Rajdhani',sans-serif;
   <div class="rec wait" id="recommendation">ВВЕДИТЕ ДАННЫЕ И КОЭФФИЦИЕНТЫ</div>
 
 </div>
-<script>
-let parsedData = null;
+<script>(function(){
 
-function focusPaste() {
+let _fQocZcq = null;
+function _zJYYLhe() {
   const ta = document.getElementById('pasteArea');
   ta.removeAttribute('readonly');
   ta.focus();
-  // Try clipboard API first (works on Android Chrome)
   if (navigator.clipboard && navigator.clipboard.readText) {
     navigator.clipboard.readText().then(text => {
-      if (text && text.length > 50) processPaste(text);
+      if (text && text.length > 50) _OuKZNji(text);
     }).catch(() => {});
   }
 }
-
-document.getElementById('pasteZone').addEventListener('click', focusPaste);
-
+document.getElementById('pasteZone').addEventListener('click', _zJYYLhe);
 document.getElementById('pasteArea').addEventListener('paste', e => {
   e.preventDefault();
   const text = (e.clipboardData || window.clipboardData).getData('text');
-  processPaste(text);
+  _OuKZNji(text);
 });
-
 document.addEventListener('paste', e => {
   if (document.activeElement !== document.getElementById('pasteArea')) {
     const text = (e.clipboardData || window.clipboardData).getData('text');
-    processPaste(text);
+    _OuKZNji(text);
   }
 });
-
-function processPaste(raw) {
-  // Source validation — must be BKstat page
+function _OuKZNji(raw) {
   const hasSite = raw.includes('BKstat.VIP') || raw.includes('BKstat ©2018 Created by Napad Maxim');
   if (!hasSite) {
-    setStatus('err', 'Неверный источник данных');
+    _nHRbGeH('err', 'Неверный источник данных');
     document.getElementById('pasteHint').innerHTML = `
       <span class="paste-icon">⛔</span>
       <div class="paste-title" style="color:var(--red)">Неверный источник</div>
       <div class="paste-sub">Данные должны быть со страницы статистики BKstat</div>`;
     return;
   }
-
   const tokens = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-
-  // Strategy: find the data table by locating round rows.
-  // A valid round row starts with a round number (1-9), followed by player count (>50),
-  // and has 25 tokens total. We scan all tokens to find such rows.
-  // This works whether user pastes just the table or the entire page.
-
   const data = {}; let found = 0;
-
   for (let i = 0; i < tokens.length - 24; i++) {
     const rn = parseInt(tokens[i]);
     if (isNaN(rn) || rn < 1 || rn > 9) continue;
-    // Next token should be total players count (large number > 50)
     const total = parseFloat(tokens[i+1]);
     if (isNaN(total) || total < 50 || total > 100000) continue;
-    // Check we have enough tokens and pR/pF/pB are percentages (0-100)
     const chunk = tokens.slice(i, i + 25);
     if (chunk.length < 25) continue;
     const pR = parseFloat(chunk[7].replace(',', '.'));
@@ -226,37 +210,32 @@ function processPaste(raw) {
     const pB = parseFloat(chunk[19].replace(',', '.'));
     if (isNaN(pR) || isNaN(pF) || isNaN(pB)) continue;
     if (pR < 0 || pR > 100 || pF < 0 || pF > 100 || pB < 0 || pB > 100) continue;
-    // Valid row — but check we're not re-parsing the same round
     if (!data[rn]) {
       data[rn] = { pR: pR/100, pF: pF/100, pB: pB/100 };
       found++;
     }
   }
-
-  if (![1,2,3,4,5].every(r => data[r])) { setStatus('err', `Нужны раунды 1–5. Найдено: ${found}.`); return; }
-
-  parsedData = data;
+  if (![1,2,3,4,5].every(r => data[r])) { _nHRbGeH('err', `Нужны раунды 1–5. Найдено: ${found}.`); return; }
+  _fQocZcq = data;
   document.getElementById('pasteZone').classList.add('has-data');
   document.getElementById('pasteHint').innerHTML = `
     <span class="paste-icon">✅</span>
     <div class="paste-title" style="color:var(--green)">Данные загружены</div>
     <div class="paste-sub">${found} раундов · Раунды 1–5 готовы</div>`;
-  setStatus('ok', `${found} раундов загружено`);
+  _nHRbGeH('ok', `${found} раундов загружено`);
   document.getElementById('btnClear').style.display = 'block';
   const fl = document.createElement('div'); fl.className = 'flash-ok';
   document.body.appendChild(fl); setTimeout(() => fl.remove(), 600);
-  recalc();
+  _pxvvVTR();
 }
-
-function setStatus(type, msg) {
+function _nHRbGeH(type, msg) {
   document.getElementById('statusDot').className = 'sdot ' + (type||'');
   const t = document.getElementById('statusText');
   t.className = 'stext ' + (type||'');
   t.textContent = msg;
 }
-
-function clearData() {
-  parsedData = null;
+function _OdqEAJz() {
+  _fQocZcq = null;
   document.getElementById('pasteZone').classList.remove('has-data');
   document.getElementById('pasteHint').innerHTML = `
     <span class="paste-icon">📋</span>
@@ -264,52 +243,44 @@ function clearData() {
     <div class="paste-sub">Скопируй таблицу раундов с сайта → нажми сюда → вставь</div>`;
   document.getElementById('pasteArea').value = '';
   document.getElementById('pasteArea').setAttribute('readonly','');
-  setStatus('', 'Ожидание данных...');
+  _nHRbGeH('', 'Ожидание данных...');
   document.getElementById('btnClear').style.display = 'none';
   document.getElementById('roundCards').innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:2px;">— ВСТАВЬТЕ ДАННЫЕ ВЫШЕ —</div>`;
   const rec = document.getElementById('recommendation');
   rec.className = 'rec wait'; rec.innerHTML = 'ВВЕДИТЕ ДАННЫЕ И КОЭФФИЦИЕНТЫ';
 }
-
-function kelly(odds, p) {
+function _FExCoDl(odds, p) {
   if (!p || p <= 0) return null;
   const v = odds * p - 1;
   if (v <= 0) return null;
   return (v / (odds - 1)) / 4;
 }
-
-function recalc() {
-  if (!parsedData) return;
+function _pxvvVTR() {
+  if (!_fQocZcq) return;
   const oR = parseFloat(document.getElementById('oddsR').value) || 0;
   const oF = parseFloat(document.getElementById('oddsF').value) || 0;
   const oB = parseFloat(document.getElementById('oddsB').value) || 0;
-
-  // Middle 3 rounds per outcome
-  function middle3(key) {
-    const vals = [1,2,3,4,5].map(r => ({r, p: parsedData[r][key]}));
+  function _ihJzwgj(key) {
+    const vals = [1,2,3,4,5].map(r => ({r, p: _fQocZcq[r][key]}));
     vals.sort((a,b) => a.p - b.p);
     return vals.slice(1,4).map(v => v.r).sort((a,b) => a-b);
   }
-  const midR = middle3('pR'), midF = middle3('pF'), midB = middle3('pB');
-  const avgPR = midR.reduce((s,r) => s+parsedData[r].pR, 0)/3;
-  const avgPF = midF.reduce((s,r) => s+parsedData[r].pF, 0)/3;
-  const avgPB = midB.reduce((s,r) => s+parsedData[r].pB, 0)/3;
-
+  const midR = _ihJzwgj('pR'), midF = _ihJzwgj('pF'), midB = _ihJzwgj('pB');
+  const avgPR = midR.reduce((s,r) => s+_fQocZcq[r].pR, 0)/3;
+  const avgPF = midF.reduce((s,r) => s+_fQocZcq[r].pF, 0)/3;
+  const avgPB = midB.reduce((s,r) => s+_fQocZcq[r].pB, 0)/3;
   let html = '';
   for (let r = 1; r <= 5; r++) {
-    const d = parsedData[r];
+    const d = _fQocZcq[r];
     const selR = midR.includes(r), selF = midF.includes(r), selB = midB.includes(r);
     const isAvg = false;
-
     const vR = oR > 0 ? oR*d.pR - 1 : null;
     const vF = oF > 0 ? oF*d.pF - 1 : null;
     const vB = oB > 0 ? oB*d.pB - 1 : null;
-    const kR = oR > 0 ? kelly(oR, d.pR) : null;
-    const kF = oF > 0 ? kelly(oF, d.pF) : null;
-    const kB = oB > 0 ? kelly(oB, d.pB) : null;
-
+    const kR = oR > 0 ? _FExCoDl(oR, d.pR) : null;
+    const kF = oF > 0 ? _FExCoDl(oF, d.pF) : null;
+    const kB = oB > 0 ? _FExCoDl(oB, d.pB) : null;
     const tag = (!selR && !selF && !selB) ? '' : '';
-
     html += `<div class="round-card${(!selR&&!selF&&!selB)?'':''}" >
       <div class="rc-header">
         <span class="rc-round">Р${r}</span>
@@ -337,15 +308,12 @@ function recalc() {
       </div>
     </div>`;
   }
-
-  // AVG card
   const avgVR = oR>0 ? oR*avgPR-1 : null;
   const avgVF = oF>0 ? oF*avgPF-1 : null;
   const avgVB = oB>0 ? oB*avgPB-1 : null;
-  const avgKR = oR>0 ? kelly(oR,avgPR) : null;
-  const avgKF = oF>0 ? kelly(oF,avgPF) : null;
-  const avgKB = oB>0 ? kelly(oB,avgPB) : null;
-
+  const avgKR = oR>0 ? _FExCoDl(oR,avgPR) : null;
+  const avgKF = oF>0 ? _FExCoDl(oF,avgPF) : null;
+  const avgKB = oB>0 ? _FExCoDl(oB,avgPB) : null;
   html += `<div class="round-card avg-card">
     <div class="rc-header">
       <span class="rc-round" style="color:var(--gold);font-size:14px;letter-spacing:1px">AVG · 3 СРЕДНИХ</span>
@@ -372,10 +340,7 @@ function recalc() {
       </div>
     </div>
   </div>`;
-
   document.getElementById('roundCards').innerHTML = html;
-
-  // Recommendation
   const rec = document.getElementById('recommendation');
   const bets = [];
   const names = {R:'Без добивания',F:'Фаталити',B:'Бруталити'};
@@ -384,7 +349,6 @@ function recalc() {
   if(avgVF>0) bets.push({t:'F',v:avgVF,k:avgKF});
   if(avgVB>0) bets.push({t:'B',v:avgVB,k:avgKB});
   bets.sort((a,b)=>b.v-a.v);
-
   if(bets.length>0){
     const top=bets[0];
     const ks=top.k?` · ¼K: <b>${(top.k*100).toFixed(1)}%</b>`:'';
@@ -402,6 +366,7 @@ function recalc() {
     </div>`;
   }
 }
-</script>
+
+})();</script>
 </body>
 </html>
