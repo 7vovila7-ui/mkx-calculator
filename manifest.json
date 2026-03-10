@@ -1,7 +1,7 @@
 {
   "name": "MKX Calculator",
   "short_name": "MKX Calc",
-  "start_url": "/",
+  "start_url": "//mkx-calculator/",
   "display": "standalone",
   "background_color": "#0a0a0f",
   "theme_color": "#c8a84b",
