@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.app_7vovila7_ui.twa",
+        "sha256_cert_fingerprints": ["E3:2B:E3:E9:77:AC:B3:97:A9:8D:04:60:7F:6A:52:64:30:CA:B7:4D:A6:5B:46:69:B5:67:71:52:B3:66:50:64"]
+      }
+    }]
