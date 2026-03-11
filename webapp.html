@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MKX Tool</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: #0a0a0f; color: #d0cfe8; font-family: 'Segoe UI', sans-serif; min-height: 100vh; padding: 12px; }
+h2 { color: #c8a84b; font-size: 15px; letter-spacing: 2px; margin-bottom: 8px; text-align: center; }
+.step { background: #13131c; border: 1px solid #2a2a3a; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+.step-title { font-size: 11px; color: #c8a84b; letter-spacing: 2px; margin-bottom: 8px; }
+textarea { width: 100%; height: 150px; background: #0d0d16; border: 1px solid #2a2a3a; border-radius: 6px; color: #d0cfe8; font-size: 11px; font-family: monospace; padding: 8px; resize: none; outline: none; }
+textarea:focus { border-color: #c8a84b; }
+textarea::placeholder { color: #666680; }
+.btn { width: 100%; padding: 13px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; letter-spacing: 1px; cursor: pointer; margin-top: 6px; }
+.btn-gold { background: linear-gradient(135deg, #c8a84b, #a07828); color: #000; }
+.btn-dark { background: #1a1f3a; border: 1px solid #2a2a3a; color: #c8a84b; font-size: 12px; padding: 10px; }
+.status { text-align: center; font-size: 11px; color: #666680; margin-top: 6px; min-height: 16px; }
+.status.ok { color: #00e676; }
+.status.err { color: #ff3d3d; }
+.status.warn { color: #c8a84b; }
+.result-box { background: #0d0d16; border: 1px solid #2a2a3a; border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 11px; font-family: monospace; white-space: pre-wrap; line-height: 1.6; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<h2>⚔ MKX VALUE TOOL</h2>
+
+<div class="step" id="step1block">
+  <div class="step-title">01 · ИСТОРИЯ ПАРЫ</div>
+  <textarea id="ta1" placeholder="Скопируйте всю страницу с историей пары с BKstat и вставьте сюда..."></textarea>
+  <button class="btn btn-dark" onclick="pasteClip('ta1','st1')">📋 Вставить из буфера</button>
+  <button class="btn btn-gold" onclick="doStep1()">▶ АНАЛИЗИРОВАТЬ</button>
+  <div class="status" id="st1"></div>
+</div>
+
+<div class="step hidden" id="step2block">
+  <div class="step-title">02 · СТАТИСТИКА РАУНДОВ</div>
+  <textarea id="ta2" placeholder="Скопируйте страницу со статистикой раундов с BKstat и вставьте сюда..."></textarea>
+  <button class="btn btn-dark" onclick="pasteClip('ta2','st2')">📋 Вставить из буфера</button>
+  <button class="btn btn-gold" onclick="doStep2()">▶ СЧИТАТЬ VALUE</button>
+  <div class="status" id="st2"></div>
+</div>
+
+<div class="step hidden" id="resultBlock">
+  <div class="step-title">РЕЗУЛЬТАТ</div>
+  <div id="resultText" class="result-box"></div>
+  <button class="btn btn-gold" onclick="sendResult()" id="btnSend" style="margin-top:8px">📤 ОТПРАВИТЬ В БОТ</button>
+  <button class="btn btn-dark" onclick="resetAll()" style="margin-top:6px">🔄 Начать заново</button>
+  <div class="status" id="stResult"></div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+const TOKEN_MAP = {'R':'R','FW':'R','F':'F','F/FW':'F','B':'B','B/FW':'B'};
+const TYPE_NAMES = {R:'Без добивания',F:'Фаталити',B:'Бруталити'};
+
+function mean(a){ return a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0; }
+
+function calcDelay(chain, t){
+  const pos = chain.map((r,i)=>r===t?i:-1).filter(i=>i>=0);
+  if(!pos.length) return 0;
+  const ivs = []; for(let i=1;i<pos.length;i++) ivs.push(pos[i]-pos[i-1]);
+  const avg = mean(ivs);
+  const since = chain.length-1-pos[pos.length-1];
+  return avg>0 ? since/avg : 0;
+}
+
+function roundDelay(matches, type, roundNum){
+  const ch = matches.map(m => m.length>=roundNum && m[roundNum-1]===type ? 1 : 0);
+  if(!ch.length) return 0;
+  const hits = ch.map((v,i)=>v?i:-1).filter(i=>i>=0);
+  if(!hits.length) return 0;
+  if(hits.length===1) return ch.length - hits[0];
+  const ivs=[]; for(let i=1;i<hits.length;i++) ivs.push(hits[i]-hits[i-1]);
+  const avg = ivs.reduce((a,b)=>a+b,0)/ivs.length;
+  const since = ch.length-1-hits[hits.length-1];
+  return avg>0 ? since/avg : 0;
+}
+
+function kelly(odds, p){ const v=odds*p-1; if(v<=0) return null; return (v/(odds-1))/4; }
+
+function parsePair(raw){
+  if(!raw.includes('BKstat.VIP') && !raw.includes('BKstat \u00a92018 Created by Napad Maxim'))
+    return {error:'⛔ Неверный источник. Нужна страница BKstat.'};
+
+  const chain=[], matchList=[], lines=raw.split('\n');
+  let curRounds=[], inMatch=false;
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i].trim();
+    if(/^\d{1,3}$/.test(line)){
+      const num=parseInt(line);
+      const next=(lines[i+1]||'').trim();
+      if(num>=2 && /^\d{2}-\d{2}-\d{2}/.test(next)){
+        if(inMatch && curRounds.length) matchList.push(curRounds);
+        curRounds=[]; inMatch=true; continue;
+      }
+    }
+    const m=line.match(/^(П[12])\s+(\S+)$/);
+    if(m){ const t=TOKEN_MAP[m[2]]; if(t){ chain.push(t); if(inMatch) curRounds.push(t); } }
+  }
+  if(inMatch && curRounds.length) matchList.push(curRounds);
+  matchList.reverse();
+
+  if(chain.length<10) return {error:'❌ Недостаточно данных.'};
+
+  // Odds + fighters from match #1
+  const ll=lines.map(l=>l.trim()).filter(l=>l);
+  let odds=null, f1='', f2='';
+  for(let i=0;i<ll.length;i++){
+    if(ll[i]==='1' && i+1<ll.length && /^\d{2}-\d{2}-\d{2}/.test(ll[i+1])){
+      for(let j=i+1;j<Math.min(i+12,ll.length);j++){
+        if(ll[j].includes('Mortal Kombat')){ f1=ll[j+1]||''; f2=ll[j+2]||''; break; }
+      }
+      let scoreFound=false, nums=[];
+      const block=ll.slice(i,i+40);
+      for(const bl of block){
+        if(!scoreFound){ if(/^\d{1,2}:\d{1,2}$/.test(bl)) scoreFound=true; continue; }
+        const n=parseFloat(bl.replace(',','.'));
+        if(!isNaN(n)&&n>=1.01&&n<=200) nums.push(n);
+        if(nums.length===3) break;
+      }
+      if(nums.length>=3) odds={R:nums[0],F:nums[1],B:nums[2]};
+      break;
+    }
+  }
+
+  const delays={R:calcDelay(chain,'R'),F:calcDelay(chain,'F'),B:calcDelay(chain,'B')};
+  const passed=['R','F','B'].filter(t=>delays[t]>0);
+
+  const roundTop3={};
+  for(const t of passed){
+    const d5=[1,2,3,4,5].map(r=>({r,d:roundDelay(matchList,t,r)}));
+    d5.sort((a,b)=>b.d-a.d);
+    roundTop3[t]=d5.slice(0,3).map(x=>x.r).sort((a,b)=>a-b);
+  }
+
+  return {chain:chain.length, delays, passed, odds, f1, f2, roundTop3, matchList};
+}
+
+function parseRounds(raw){
+  const lines=raw.split('\n').map(l=>l.trim()).filter(l=>l);
+  const data={};
+  for(let i=0;i<lines.length-24;i++){
+    const rn=parseInt(lines[i]);
+    if(isNaN(rn)||rn<1||rn>9) continue;
+    const total=parseFloat(lines[i+1]);
+    if(isNaN(total)||total<50) continue;
+    const chunk=lines.slice(i,i+25);
+    if(chunk.length<25) continue;
+    const pR=parseFloat(chunk[7].replace(',','.')),
+          pF=parseFloat(chunk[13].replace(',','.')),
+          pB=parseFloat(chunk[19].replace(',','.'));
+    if(isNaN(pR)||isNaN(pF)||isNaN(pB)) continue;
+    if(!data[rn]) data[rn]={pR:pR/100,pF:pF/100,pB:pB/100};
+  }
+  return [1,2,3,4,5].every(r=>data[r]) ? data : null;
+}
+
+function calcValue(s1, rounds){
+  const pkeys={R:'pR',F:'pF',B:'pB'};
+  return s1.passed.map(t=>{
+    const o=s1.odds?s1.odds[t]:0, pk=pkeys[t];
+    const top=s1.roundTop3[t];
+    let middle;
+    if(top&&top.length===3) middle=top;
+    else { const v=[1,2,3,4,5].map(r=>({r,p:rounds[r][pk]})).sort((a,b)=>a.p-b.p); middle=v.slice(1,4).map(x=>x.r).sort((a,b)=>a-b); }
+    const avgP=middle.reduce((s,r)=>s+rounds[r][pk],0)/3;
+    const avgV=o>0?o*avgP-1:null;
+    const avgK=o>0?kelly(o,avgP):null;
+    return {t, name:TYPE_NAMES[t], odds:o, avgP, avgV, avgK, middle};
+  });
+}
+
+function formatResult(s1, results){
+  const di={R:s1.delays.R>=1?'✅':s1.delays.R>0?'🟡':'❌', F:s1.delays.F>=1?'✅':s1.delays.F>0?'🟡':'❌', B:s1.delays.B>=1?'✅':s1.delays.B>0?'🟡':'❌'};
+  let lines=[];
+  lines.push('⚔️ MKX VALUE TOOL');
+  if(s1.f1&&s1.f2) lines.push(`👊 ${s1.f1} VS ${s1.f2}`);
+  lines.push(`📊 Цепочка: ${s1.chain} раундов`);
+  lines.push('ЗАПОЗДАНИЕ:');
+  for(const t of ['R','F','B']){
+    const d=s1.delays[t], o=s1.odds?s1.odds[t]:null;
+    lines.push(`${di[t]} ${t} (${TYPE_NAMES[t]}): ×${d.toFixed(2)}${o?' · кэф: '+o:''}`);
+  }
+  if(s1.passed.length){
+    lines.push('ВЕРОЯТНЫЕ РАУНДЫ:');
+    for(const t of s1.passed){
+      const top=s1.roundTop3[t]||[];
+      if(top.length) lines.push(`${t} → раунды ${top.join(' — ')}`);
+    }
+  }
+  if(results){
+    lines.push('');
+    for(const r of results){
+      const vs=r.avgV!=null?(r.avgV>0?`+${(r.avgV*100).toFixed(1)}%`:`${(r.avgV*100).toFixed(1)}%`):'—';
+      const ks=r.avgK?`¼K: ${(r.avgK*100).toFixed(1)}%`:'';
+      lines.push(`${r.avgV>0?'✅':'❌'} ${r.t} · кэф ${r.odds} · P: ${(r.avgP*100).toFixed(1)}% · ${vs} · ${ks} · Р${r.middle.join(',')}`);
+    }
+    const winners=results.filter(r=>r.avgV>0).sort((a,b)=>b.avgV-a.avgV);
+    lines.push('');
+    if(winners.length){
+      lines.push('✅ СТАВИТЬ:');
+      for(const w of winners) lines.push(`• ${w.name} · кэф ${w.odds} · +${(w.avgV*100).toFixed(1)}%`);
+    } else {
+      lines.push('❌ НЕТ VALUE');
+    }
+  }
+  return lines.join('\n');
+}
+
+let step1Result=null, calcResult=null;
+
+async function pasteClip(taId, stId){
+  try {
+    const text=await navigator.clipboard.readText();
+    if(text&&text.length>10){ document.getElementById(taId).value=text; setStatus(stId,'ok',`Вставлено ${text.length} символов`); }
+    else setStatus(stId,'err','Буфер пуст — сначала скопируйте страницу');
+  } catch(e) {
+    document.getElementById(taId).focus();
+    setStatus(stId,'warn','Нажмите в поле и вставьте вручную (Ctrl+V)');
+  }
+}
+
+function doStep1(){
+  const raw=document.getElementById('ta1').value.trim();
+  if(raw.length<50){ setStatus('st1','err','Вставьте данные'); return; }
+  setStatus('st1','warn','Анализирую...');
+  setTimeout(()=>{
+    const r=parsePair(raw);
+    if(r.error){ setStatus('st1','err',r.error); return; }
+    step1Result=r;
+    if(!r.passed.length){
+      document.getElementById('resultText').textContent=formatResult(r,null);
+      document.getElementById('resultBlock').classList.remove('hidden');
+      document.getElementById('btnSend').classList.add('hidden');
+      setStatus('st1','ok','Готово — нет прошедших типов');
+      return;
+    }
+    setStatus('st1','ok',`✅ Цепочка: ${r.chain} · Прошли: ${r.passed.join(', ')}`);
+    document.getElementById('step2block').classList.remove('hidden');
+    document.getElementById('step2block').scrollIntoView({behavior:'smooth'});
+  },30);
+}
+
+function doStep2(){
+  if(!step1Result){ setStatus('st2','err','Сначала выполните шаг 1'); return; }
+  const raw=document.getElementById('ta2').value.trim();
+  if(raw.length<50){ setStatus('st2','err','Вставьте данные'); return; }
+  setStatus('st2','warn','Считаю...');
+  setTimeout(()=>{
+    const rounds=parseRounds(raw);
+    if(!rounds){ setStatus('st2','err','Таблица раундов не найдена'); return; }
+    const results=calcValue(step1Result, rounds);
+    const txt=formatResult(step1Result, results);
+    document.getElementById('resultText').textContent=txt;
+    document.getElementById('resultBlock').classList.remove('hidden');
+    document.getElementById('btnSend').classList.remove('hidden');
+    setStatus('st2','ok','✅ Готово');
+    document.getElementById('resultBlock').scrollIntoView({behavior:'smooth'});
+    calcResult = { text: txt };
+  },30);
+}
+
+function sendResult(){
+  if(!calcResult){ setStatus('stResult','err','Нет результата'); return; }
+  setStatus('stResult','warn','Отправляю...');
+  try {
+    tg.sendData(JSON.stringify({type:'result', text: calcResult.text}));
+  } catch(e){
+    setStatus('stResult','err','Ошибка: '+e.message);
+  }
+}
+
+function resetAll(){
+  step1Result=null; calcResult=null;
+  document.getElementById('ta1').value='';
+  document.getElementById('ta2').value='';
+  document.getElementById('step2block').classList.add('hidden');
+  document.getElementById('resultBlock').classList.add('hidden');
+  ['st1','st2','stResult'].forEach(id=>setStatus(id,'',''));
+  window.scrollTo(0,0);
+}
+
+function setStatus(id,type,msg){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.className='status'+(type?' '+type:'');
+  el.textContent=msg;
+}
+</script>
+</body>
+</html>
