@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MKX Tool</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0a0a0f;
+  color: #d0cfe8;
+  font-family: 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  padding: 16px;
+}
+h2 {
+  color: #c8a84b;
+  font-size: 16px;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.step {
+  background: #13131c;
+  border: 1px solid #2a2a3a;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.step-title {
+  font-size: 12px;
+  color: #c8a84b;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+textarea {
+  width: 100%;
+  height: 160px;
+  background: #0d0d16;
+  border: 1px solid #2a2a3a;
+  border-radius: 6px;
+  color: #d0cfe8;
+  font-size: 11px;
+  font-family: monospace;
+  padding: 8px;
+  resize: none;
+  outline: none;
+}
+textarea:focus { border-color: #c8a84b; }
+textarea::placeholder { color: #666680; }
+.btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.btn-send {
+  background: linear-gradient(135deg, #c8a84b, #a07828);
+  color: #000;
+}
+.btn-paste {
+  background: #1a1f3a;
+  border: 1px solid #2a2a3a;
+  color: #c8a84b;
+  font-size: 13px;
+  padding: 10px;
+  margin-top: 4px;
+}
+.status {
+  text-align: center;
+  font-size: 12px;
+  color: #666680;
+  margin-top: 8px;
+  min-height: 18px;
+}
+.status.ok { color: #00e676; }
+.status.err { color: #ff3d3d; }
+.mode-indicator {
+  text-align: center;
+  font-size: 11px;
+  color: #666680;
+  margin-bottom: 12px;
+  padding: 6px;
+  background: #13131c;
+  border-radius: 6px;
+  border: 1px solid #2a2a3a;
+}
+.mode-indicator span { color: #c8a84b; }
+</style>
+</head>
+<body>
+
+<h2>⚔ MKX VALUE TOOL</h2>
+
+<div class="mode-indicator" id="modeIndicator">
+  Режим: <span id="modeText">Шаг 1 — история пары</span>
+</div>
+
+<div class="step">
+  <div class="step-title" id="stepTitle">01 · ВСТАВЬТЕ ИСТОРИЮ ПАРЫ</div>
+  <textarea id="dataInput" placeholder="Скопируйте всю страницу с BKstat и вставьте сюда..."></textarea>
+  <button class="btn btn-paste" onclick="pasteFromClipboard()">📋 Вставить из буфера</button>
+  <button class="btn btn-send" onclick="sendData()">▶ ОТПРАВИТЬ</button>
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+// Determine step from URL param
+const params = new URLSearchParams(window.location.search);
+const step = params.get('step') || '1';
+
+if (step === '2') {
+  document.getElementById('stepTitle').textContent = '02 · ВСТАВЬТЕ СТАТИСТИКУ РАУНДОВ';
+  document.getElementById('modeText').textContent = 'Шаг 2 — статистика раундов';
+  document.getElementById('dataInput').placeholder = 'Скопируйте страницу со статистикой раундов с BKstat...';
+}
+
+async function pasteFromClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text && text.length > 10) {
+      document.getElementById('dataInput').value = text;
+      setStatus('ok', `Вставлено ${text.length} символов`);
+    } else {
+      setStatus('err', 'Буфер пуст');
+    }
+  } catch(e) {
+    setStatus('err', 'Нажмите в поле и вставьте вручную (Ctrl+V)');
+    document.getElementById('dataInput').focus();
+  }
+}
+
+function sendData() {
+  const text = document.getElementById('dataInput').value.trim();
+  if (text.length < 50) {
+    setStatus('err', 'Слишком мало данных');
+    return;
+  }
+  setStatus('ok', 'Отправляю...');
+  tg.sendData(JSON.stringify({ step: step, text: text }));
+}
+
+function setStatus(type, msg) {
+  const el = document.getElementById('status');
+  el.className = 'status ' + type;
+  el.textContent = msg;
+}
+
+// Auto-paste on load if clipboard available
+window.addEventListener('load', () => {
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    navigator.clipboard.readText().then(text => {
+      if (text && text.length > 100) {
+        document.getElementById('dataInput').value = text;
+        setStatus('ok', `Автовставка: ${text.length} символов`);
+      }
+    }).catch(() => {});
+  }
+});
+</script>
+</body>
+</html>
